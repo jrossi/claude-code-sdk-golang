@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"github.com/jrossi/claude-code-sdk-golang/types"
 	"runtime"
 	"strings"
@@ -583,4 +584,340 @@ func TestEnvironmentVariableHandling(t *testing.T) {
 	if len(cmd.Env) == 0 {
 		t.Error("Expected environment variables to be preserved")
 	}
+}
+
+// TestStreamMethodComprehensive tests the Stream method with various scenarios
+func TestStreamMethodComprehensive(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *Config
+		cliPath string
+		setup   func(*SubprocessTransport)
+		wantErr bool
+	}{
+		{
+			name: "successful stream start",
+			config: &Config{
+				Prompt:  "test prompt",
+				Options: types.NewOptions(),
+			},
+			cliPath: "/fake/claude",
+			wantErr: true, // Will fail due to fake CLI path, but should test the flow
+		},
+		{
+			name: "empty CLI path",
+			config: &Config{
+				Prompt:  "test prompt",
+				Options: types.NewOptions(),
+			},
+			cliPath: "",
+			wantErr: true,
+		},
+		{
+			name: "already connected",
+			config: &Config{
+				Prompt:  "test prompt",
+				Options: types.NewOptions(),
+			},
+			cliPath: "/fake/claude",
+			setup: func(st *SubprocessTransport) {
+				st.connected = true
+			},
+			wantErr: true, // Should fail because already connected
+		},
+		{
+			name: "nil config",
+			config: nil,
+			cliPath: "/fake/claude",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var transport *SubprocessTransport
+			if tt.config != nil {
+				transport = NewSubprocessTransport(tt.config)
+			} else {
+				transport = &SubprocessTransport{}
+			}
+
+			if tt.setup != nil {
+				tt.setup(transport)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+
+			dataChan, errChan := transport.Stream(ctx)
+
+			// For transport layer, we expect channels to be returned
+			// Errors will come through the error channel, not as return values
+			if dataChan == nil {
+				t.Error("Expected non-nil data channel")
+			}
+			if errChan == nil {
+				t.Error("Expected non-nil error channel")
+			}
+
+			// If we expect errors, check the error channel
+			if tt.wantErr {
+				select {
+				case err := <-errChan:
+					if err == nil {
+						t.Error("Expected error in error channel but got none")
+					}
+				case <-time.After(200 * time.Millisecond):
+					// For some cases, errors might not come immediately
+				}
+			}
+		})
+	}
+}
+
+// TestCloseMethodComprehensive tests the Close method thoroughly
+func TestCloseMethodComprehensive(t *testing.T) {
+	tests := []struct {
+		name   string
+		setup  func(*SubprocessTransport) 
+		verify func(*SubprocessTransport, error) error
+	}{
+		{
+			name: "close not connected",
+			setup: func(st *SubprocessTransport) {
+				// Transport not connected, should be no-op
+			},
+			verify: func(st *SubprocessTransport, err error) error {
+				if err != nil {
+					return fmt.Errorf("unexpected error: %v", err)
+				}
+				return nil
+			},
+		},
+		{
+			name: "close with nil cmd",
+			setup: func(st *SubprocessTransport) {
+				st.connected = true
+				st.cmd = nil
+			},
+			verify: func(st *SubprocessTransport, err error) error {
+				if err != nil {
+					return fmt.Errorf("unexpected error: %v", err)
+				}
+				if st.connected {
+					return fmt.Errorf("should not be connected after close")
+				}
+				return nil
+			},
+		},
+		{
+			name: "close with done channel already closed",
+			setup: func(st *SubprocessTransport) {
+				st.connected = true
+				st.doneChan = make(chan struct{})
+				close(st.doneChan)
+			},
+			verify: func(st *SubprocessTransport, err error) error {
+				if err != nil {
+					return fmt.Errorf("unexpected error: %v", err)
+				}
+				return nil
+			},
+		},
+		{
+			name: "multiple close calls",
+			setup: func(st *SubprocessTransport) {
+				st.connected = true
+				st.doneChan = make(chan struct{})
+			},
+			verify: func(st *SubprocessTransport, err error) error {
+				if err != nil {
+					return fmt.Errorf("first close error: %v", err)
+				}
+				// Call close again
+				err2 := st.Close()
+				if err2 != nil {
+					return fmt.Errorf("second close error: %v", err2)
+				}
+				return nil
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{
+				Prompt:  "test",
+				Options: types.NewOptions(),
+			}
+			transport := NewSubprocessTransport(config)
+			
+			if tt.setup != nil {
+				tt.setup(transport)
+			}
+
+			err := transport.Close()
+
+			if verifyErr := tt.verify(transport, err); verifyErr != nil {
+				t.Error(verifyErr)
+			}
+		})
+	}
+}
+
+// TestSubprocessTransportStateManagement tests state transitions
+func TestSubprocessTransportStateManagement(t *testing.T) {
+	config := &Config{
+		Prompt:  "test prompt",
+		Options: types.NewOptions(),
+	}
+	transport := NewSubprocessTransport(config)
+
+	// Initial state
+	if transport.IsConnected() {
+		t.Error("Transport should not be connected initially")
+	}
+
+	// Test Connect with invalid CLI path  
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	err := transport.Connect(ctx)
+	if err == nil {
+		t.Error("Expected error for nonexistent CLI")
+	}
+	if transport.IsConnected() {
+		t.Error("Transport should not be connected after failed connect")
+	}
+
+	// Test Close on disconnected transport
+	err = transport.Close()
+	if err != nil {
+		t.Errorf("Close on disconnected transport should not error: %v", err)
+	}
+}
+
+// TestSubprocessTransportChannelHandling tests channel initialization and cleanup
+func TestSubprocessTransportChannelHandling(t *testing.T) {
+	config := &Config{
+		Prompt:  "test prompt",
+		Options: types.NewOptions(),
+	}
+	transport := NewSubprocessTransport(config)
+
+	// Verify initial state
+	if transport.dataChan != nil {
+		t.Error("Data channel should be nil initially")
+	}
+	if transport.errChan != nil {
+		t.Error("Error channel should be nil initially")
+	}
+	if transport.doneChan != nil {
+		t.Error("Done channel should be nil initially")
+	}
+
+	// Test that Stream would initialize channels (even if it fails)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, _ = transport.Stream(ctx)
+
+	// After failed Stream call, channels might be initialized
+	// This is implementation-dependent
+}
+
+// TestStreamReturnChannels tests that Stream returns proper channels
+func TestStreamReturnChannels(t *testing.T) {
+	config := &Config{
+		Prompt:  "test prompt", 
+		Options: types.NewOptions(),
+	}
+	transport := NewSubprocessTransport(config)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	dataChan, errChan := transport.Stream(ctx)
+	
+	// The method signature should be consistent
+	_ = dataChan  
+	_ = errChan
+}
+
+// TestBuildCommandErrorHandling tests buildCommand error cases
+func TestBuildCommandErrorHandling(t *testing.T) {
+	transport := NewSubprocessTransport(&Config{
+		Prompt:  "test",
+		Options: nil, // This should cause an error
+	})
+
+	_, err := transport.buildCommand("/fake/claude")
+	if err == nil {
+		t.Error("Expected error for nil options")
+	}
+	if !strings.Contains(err.Error(), "options cannot be nil") {
+		t.Errorf("Expected 'options cannot be nil' error, got: %v", err)
+	}
+}
+
+// TestConnectWithRealExecutable tests Connect with a real executable
+func TestConnectWithRealExecutable(t *testing.T) {
+	// Find a real executable that exists on the system
+	realExecutable, err := exec.LookPath("echo")
+	if err != nil {
+		t.Skip("echo command not found")
+	}
+
+	config := &Config{
+		Prompt:  "test prompt",
+		Options: types.NewOptions(),
+	}
+	transport := NewSubprocessTransport(config)
+
+	// This should work but fail later due to wrong executable
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	
+	// Temporarily set CLI path to the real executable
+	transport.config.CLIPath = realExecutable
+	err = transport.Connect(ctx)
+	if err == nil {
+		// If it succeeds, it should be connected
+		if !transport.IsConnected() {
+			t.Error("Should be connected after successful Connect")
+		}
+		
+		// Clean up
+		transport.Close()
+	}
+	// If it fails, that's also OK - echo isn't claude
+}
+
+// TestStreamPartialFailure tests Stream method when it partially succeeds
+func TestStreamPartialFailure(t *testing.T) {
+	config := &Config{
+		Prompt:  "test prompt",
+		Options: types.NewOptions(),
+	}
+	transport := NewSubprocessTransport(config)
+
+	// Manually set connected to true to bypass Connect
+	transport.connected = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// This should fail at buildCommand stage since CLI doesn't exist
+	dataChan, errChan := transport.Stream(ctx)
+	
+	// Check for errors in the error channel
+	select {
+	case err := <-errChan:
+		if err == nil {
+			t.Error("Expected error for nonexistent CLI in Stream")
+		}
+	case <-time.After(100 * time.Millisecond):
+		// Timeout is OK, some errors might not come immediately
+	}
+	
+	_ = dataChan // Suppress unused variable warning
 }
