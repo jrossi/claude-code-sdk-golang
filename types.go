@@ -1,6 +1,8 @@
 package claudecode
 
-import "github.com/jrossi/claude-code-sdk-golang/internal/types"
+import (
+	"github.com/jrossi/claude-code-sdk-golang/types"
+)
 
 // Re-export message and content block types from internal package
 type (

@@ -3,9 +3,8 @@ package transport
 
 import (
 	"context"
+	"github.com/jrossi/claude-code-sdk-golang/types"
 	"io"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
 )
 
 // Transport represents an abstract communication channel with Claude Code CLI.

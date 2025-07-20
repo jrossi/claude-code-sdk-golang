@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jrossi/claude-code-sdk-golang/types"
 	"io"
 	"os"
 	"os/exec"
@@ -13,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
 )
 
 // SubprocessTransport implements Transport using Claude Code CLI subprocess.

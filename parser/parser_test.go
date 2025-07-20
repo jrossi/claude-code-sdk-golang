@@ -2,10 +2,9 @@ package parser
 
 import (
 	"context"
+	"github.com/jrossi/claude-code-sdk-golang/types"
 	"testing"
 	"time"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
 )
 
 func TestNewParser(t *testing.T) {

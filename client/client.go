@@ -4,16 +4,15 @@ package client
 
 import (
 	"context"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/parser"
-	"github.com/jrossi/claude-code-sdk-golang/internal/transport"
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
+	"github.com/jrossi/claude-code-sdk-golang/parser"
+	transport2 "github.com/jrossi/claude-code-sdk-golang/transport"
+	"github.com/jrossi/claude-code-sdk-golang/types"
 )
 
 // Client coordinates between transport and parser to provide Claude Code functionality.
 type Client struct {
 	// Configuration for transport
-	transportConfig *transport.Config
+	transportConfig *transport2.Config
 
 	// Parser for JSON messages
 	parser *parser.Parser
@@ -34,7 +33,7 @@ func (c *Client) Query(ctx context.Context, prompt string, options *types.Option
 	}
 
 	// Create transport configuration
-	c.transportConfig = &transport.Config{
+	c.transportConfig = &transport2.Config{
 		Prompt:  prompt,
 		Options: options,
 		// CLIPath can be set later if needed
@@ -42,7 +41,7 @@ func (c *Client) Query(ctx context.Context, prompt string, options *types.Option
 	}
 
 	// Create subprocess transport
-	subprocessTransport := transport.NewSubprocessTransport(c.transportConfig)
+	subprocessTransport := transport2.NewSubprocessTransport(c.transportConfig)
 
 	// Create query stream
 	stream := NewQueryStream(ctx, subprocessTransport, c.parser)
@@ -64,14 +63,14 @@ func (c *Client) QueryWithCLIPath(ctx context.Context, prompt string, options *t
 	}
 
 	// Create transport configuration with custom CLI path
-	c.transportConfig = &transport.Config{
+	c.transportConfig = &transport2.Config{
 		Prompt:  prompt,
 		Options: options,
 		CLIPath: cliPath,
 	}
 
 	// Create subprocess transport
-	subprocessTransport := transport.NewSubprocessTransport(c.transportConfig)
+	subprocessTransport := transport2.NewSubprocessTransport(c.transportConfig)
 
 	// Create query stream
 	stream := NewQueryStream(ctx, subprocessTransport, c.parser)

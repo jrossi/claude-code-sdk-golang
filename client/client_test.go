@@ -2,10 +2,9 @@ package client
 
 import (
 	"context"
+	"github.com/jrossi/claude-code-sdk-golang/parser"
 	"testing"
 	"time"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/parser"
 )
 
 func TestNewClient(t *testing.T) {

@@ -2,11 +2,10 @@ package client
 
 import (
 	"context"
+	"github.com/jrossi/claude-code-sdk-golang/parser"
+	"github.com/jrossi/claude-code-sdk-golang/transport"
+	"github.com/jrossi/claude-code-sdk-golang/types"
 	"sync"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/parser"
-	"github.com/jrossi/claude-code-sdk-golang/internal/transport"
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
 )
 
 // QueryStream provides a streaming interface for receiving messages from Claude Code.

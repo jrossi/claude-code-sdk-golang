@@ -49,12 +49,11 @@ package claudecode
 
 import (
 	"context"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/client"
+	client2 "github.com/jrossi/claude-code-sdk-golang/client"
 )
 
 // defaultClient is the package-level client instance used by the Query function.
-var defaultClient = client.NewClient()
+var defaultClient = client2.NewClient()
 
 // Query initiates a query to Claude Code and returns a stream for receiving messages.
 // This is the main entry point for the SDK, providing a simple interface for most use cases.
@@ -144,7 +143,7 @@ func SetParserBufferSize(size int) {
 // QueryStream provides a streaming interface for receiving messages from Claude Code.
 // It wraps the internal client QueryStream to provide a clean public API.
 type QueryStream struct {
-	internal *client.QueryStream
+	internal *client2.QueryStream
 }
 
 // Messages returns a channel that receives parsed messages from Claude.
@@ -221,6 +220,6 @@ func (qs *QueryStream) IsClosed() bool {
 }
 
 // wrapQueryStream wraps an internal QueryStream to provide the public API.
-func wrapQueryStream(internal *client.QueryStream) *QueryStream {
+func wrapQueryStream(internal *client2.QueryStream) *QueryStream {
 	return &QueryStream{internal: internal}
 }

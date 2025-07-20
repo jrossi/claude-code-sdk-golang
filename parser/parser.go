@@ -5,9 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jrossi/claude-code-sdk-golang/types"
 	"strings"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
 )
 
 const (
@@ -265,7 +264,7 @@ func (p *Parser) parseUserMessage(raw map[string]any) (*types.UserMessage, error
 	if contentStr, ok := message["content"].(string); ok {
 		return &types.UserMessage{Content: contentStr}, nil
 	}
-	
+
 	if contentArray, ok := message["content"].([]any); ok {
 		// For tool result arrays, create a summary string
 		return &types.UserMessage{Content: fmt.Sprintf("Tool results: %d items", len(contentArray))}, nil

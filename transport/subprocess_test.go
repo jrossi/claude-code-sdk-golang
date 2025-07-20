@@ -2,16 +2,15 @@ package transport
 
 import (
 	"context"
+	types2 "github.com/jrossi/claude-code-sdk-golang/types"
 	"strings"
 	"testing"
-
-	"github.com/jrossi/claude-code-sdk-golang/internal/types"
 )
 
 func TestNewSubprocessTransport(t *testing.T) {
 	config := &Config{
 		Prompt:  "Hello, world!",
-		Options: types.NewOptions(),
+		Options: types2.NewOptions(),
 	}
 
 	transport := NewSubprocessTransport(config)
@@ -29,7 +28,7 @@ func TestCLIDiscovery(t *testing.T) {
 	transport := &SubprocessTransport{
 		config: &Config{
 			Prompt:  "test",
-			Options: types.NewOptions(),
+			Options: types2.NewOptions(),
 		},
 	}
 
@@ -46,12 +45,12 @@ func TestCLIDiscovery(t *testing.T) {
 func TestCommandBuilding(t *testing.T) {
 	tests := []struct {
 		name     string
-		options  *types.Options
+		options  *types2.Options
 		expected []string
 	}{
 		{
 			name:    "basic options",
-			options: types.NewOptions(),
+			options: types2.NewOptions(),
 			expected: []string{
 				"--output-format", "stream-json", "--verbose",
 				"--print", "test prompt",
@@ -59,7 +58,7 @@ func TestCommandBuilding(t *testing.T) {
 		},
 		{
 			name: "with system prompt",
-			options: types.NewOptions().
+			options: types2.NewOptions().
 				WithSystemPrompt("You are helpful"),
 			expected: []string{
 				"--output-format", "stream-json", "--verbose",
@@ -69,7 +68,7 @@ func TestCommandBuilding(t *testing.T) {
 		},
 		{
 			name: "with tools",
-			options: types.NewOptions().
+			options: types2.NewOptions().
 				WithAllowedTools("Read", "Write").
 				WithDisallowedTools("Bash"),
 			expected: []string{
@@ -81,7 +80,7 @@ func TestCommandBuilding(t *testing.T) {
 		},
 		{
 			name: "with max turns and model",
-			options: types.NewOptions().
+			options: types2.NewOptions().
 				WithMaxTurns(5).
 				WithModel("claude-3-sonnet"),
 			expected: []string{
@@ -93,8 +92,8 @@ func TestCommandBuilding(t *testing.T) {
 		},
 		{
 			name: "with permission mode",
-			options: types.NewOptions().
-				WithPermissionMode(types.PermissionModeAcceptEdits),
+			options: types2.NewOptions().
+				WithPermissionMode(types2.PermissionModeAcceptEdits),
 			expected: []string{
 				"--output-format", "stream-json", "--verbose",
 				"--permission-mode", "acceptEdits",
@@ -103,7 +102,7 @@ func TestCommandBuilding(t *testing.T) {
 		},
 		{
 			name: "with continue conversation and resume",
-			options: types.NewOptions().
+			options: types2.NewOptions().
 				WithContinueConversation().
 				WithResume("session_123"),
 			expected: []string{
@@ -161,17 +160,17 @@ func TestCommandBuilding(t *testing.T) {
 }
 
 func TestMcpServerConfigConversion(t *testing.T) {
-	options := types.NewOptions().
-		AddMcpServer("stdio_server", &types.StdioServerConfig{
+	options := types2.NewOptions().
+		AddMcpServer("stdio_server", &types2.StdioServerConfig{
 			Command: "python",
 			Args:    []string{"-m", "my_server"},
 			Env:     map[string]string{"DEBUG": "1"},
 		}).
-		AddMcpServer("sse_server", &types.SSEServerConfig{
+		AddMcpServer("sse_server", &types2.SSEServerConfig{
 			URL:     "https://example.com/mcp",
 			Headers: map[string]string{"Authorization": "Bearer token"},
 		}).
-		AddMcpServer("http_server", &types.HTTPServerConfig{
+		AddMcpServer("http_server", &types2.HTTPServerConfig{
 			URL:     "https://api.example.com/mcp",
 			Headers: map[string]string{"X-API-Key": "key123"},
 		})
@@ -225,7 +224,7 @@ func TestMcpServerConfigConversion(t *testing.T) {
 func TestTransportLifecycle(t *testing.T) {
 	config := &Config{
 		Prompt:  "test",
-		Options: types.NewOptions(),
+		Options: types2.NewOptions(),
 		CLIPath: "/fake/claude", // Use fake path to avoid actual CLI requirement
 	}
 
