@@ -219,8 +219,7 @@ func findSubstring(s, substr string) bool {
 }
 
 func printInstallationInstructions() {
-	fmt.Println(`
-Claude Code CLI not found. To run these examples, you need to install the Claude Code CLI:
+	fmt.Println(`Claude Code CLI not found. To run these examples, you need to install the Claude Code CLI:
 
 1. Install Node.js from: https://nodejs.org/
 2. Install Claude Code CLI:
@@ -232,6 +231,5 @@ Claude Code CLI not found. To run these examples, you need to install the Claude
 4. Run this example again:
    go run examples/quickstart.go
 
-For more information, visit: https://github.com/anthropics/claude-code
-`)
+For more information, visit: https://github.com/anthropics/claude-code`)
 }
